@@ -27,9 +27,12 @@ spring:
       routes[3].id: discovery-server-static
       routes[3].uri: http://localhost:8761
       routes[3].predicates[0]: Path=/eureka/**
-
   main:
     web-application-type: reactive
+  zipkin:
+    base-url: http://localhost:9411
+  sleuth:
+    sampler.probability:1.0
 
 logging:
   level:
@@ -39,6 +42,7 @@ logging:
 
 server:
   port: 9090
+
 
 
 
