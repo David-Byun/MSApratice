@@ -1,6 +1,7 @@
 package msa.inventory.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import msa.inventory.dto.InventoryResponse;
 import msa.inventory.repository.InventoryRepository;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ public class InventoryService {
     private final InventoryRepository inventoryRepository;
 
     @Transactional(readOnly = true)
+    @SneakyThrows
     public List<InventoryResponse> isInStock(List<String> skuCode) {
         return inventoryRepository.findBySkuCodeIn(skuCode).stream()
                 .map(inventory ->
