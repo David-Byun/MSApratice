@@ -6,11 +6,13 @@ import lombok.extern.slf4j.Slf4j;
 import msa.order.dto.InventoryResponse;
 import msa.order.dto.OrderLineItemsDto;
 import msa.order.dto.OrderRequest;
+import msa.order.event.OrderPlacedEvent;
 import msa.order.model.Order;
 import msa.order.model.OrderLineItems;
 import msa.order.repository.OrderRepository;
 import org.springframework.cloud.sleuth.Span;
 import org.springframework.cloud.sleuth.Tracer;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -29,6 +31,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClient;
     private final Tracer tracer;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     public String placeOrder(OrderRequest orderRequest) {
         Order order = new Order();
@@ -62,7 +65,8 @@ public class OrderService {
 
             if (allProductsInStock) {
                 orderRepository.save(order);
-                return "Order Placed";
+                kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
+                return "Order Placed Successfully";
             } else {
                 throw new IllegalArgumentException("Product is not in stock, plz try again!");
             }
