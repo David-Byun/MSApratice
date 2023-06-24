@@ -4,7 +4,7 @@ import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import msa.order.dto.InventoryResponse;
-import msa.order.dto.OrderLineItemsDto;
+import msa.order.dto.OrderLineItemsDtoList;
 import msa.order.dto.OrderRequest;
 import msa.order.event.OrderPlacedEvent;
 import msa.order.model.Order;
@@ -25,7 +25,7 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 @Transactional
-@TimeLimiter(name = "inventory")
+//@TimeLimiter(name = "inventory")
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -46,11 +46,19 @@ public class OrderService {
         List<String> skuCodes = order.getOrderLineItemsList().stream().map(OrderLineItems::getSkuCode).toList();
 
         log.info("Calling Invertory Service");
-        // own span 만들수 있음
+//        // Call Inventory Service, and place order if product is in stock http://localhost:8091/actuator/health에서 확인할 수 있음(서킷브레이커)
+//        InventoryResponse[] inventoryResponseArray = webClient.build().get()
+//                .uri("http://inventory-service/api/inventory", uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
+//                .retrieve()
+//                //retrieve() 메서드는 요청에 응답 받았을 때 그 값을 추출하는 방법
+//                .bodyToMono(InventoryResponse[].class)
+//                //return 타입을 설정해서 문자열 객체로 받아오게 되어 있음
+//                .block();
+        //own span 만들수 있음
         Span inventoryServiceLookup = tracer.nextSpan().name("InventoryServiceLookup");
 
         try(Tracer.SpanInScope spanInScope = tracer.withSpan(inventoryServiceLookup.start())){
-            // Call Inventory Service, and place order if product is in stock http://localhost:8091/actuator/health에서 확인할 수 있음(서킷브레이커)
+//            // Call Inventory Service, and place order if product is in stock http://localhost:8091/actuator/health에서 확인할 수 있음(서킷브레이커)
             InventoryResponse[] inventoryResponseArray = webClient.build().get()
                     .uri("http://inventory-service/api/inventory", uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
                     .retrieve()
@@ -59,18 +67,19 @@ public class OrderService {
                     //return 타입을 설정해서 문자열 객체로 받아오게 되어 있음
                     .block();
             //block 논블로킹으로 작동하는 WebClient 를 블로킹 구조로 바꾸기 위해 사용
-
+//
             boolean allProductsInStock = Arrays.stream(inventoryResponseArray).allMatch(InventoryResponse::isInStock);
 
 
             if (allProductsInStock) {
                 orderRepository.save(order);
                 kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
+
                 return "Order Placed Successfully";
             } else {
                 throw new IllegalArgumentException("Product is not in stock, plz try again!");
             }
-
+//
         } finally {
             inventoryServiceLookup.end();
         }
@@ -79,10 +88,10 @@ public class OrderService {
 
     }
 
-    private OrderLineItems mapToDto(OrderLineItemsDto orderLineItemsDto) {
+    private OrderLineItems mapToDto(OrderLineItemsDtoList orderLineItemsDtoList) {
         OrderLineItems orderLineItems = new OrderLineItems();
-        orderLineItems.setPrice(orderLineItemsDto.getPrice());
-        orderLineItems.setQuantity(orderLineItemsDto.getQuantity());
+        orderLineItems.setPrice(orderLineItemsDtoList.getPrice());
+        orderLineItems.setQuantity(orderLineItemsDtoList.getQuantity());
         orderLineItems.setSkuCode(orderLineItems.getSkuCode());
         return orderLineItems;
     }

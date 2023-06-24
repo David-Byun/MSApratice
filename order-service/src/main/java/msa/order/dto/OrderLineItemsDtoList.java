@@ -9,8 +9,8 @@ import java.math.BigDecimal;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderLineItemsDto {
-    private String orderNumber;
+public class OrderLineItemsDtoList {
+    private String skuCode;
     private BigDecimal price;
     private Integer quantity;
 }
